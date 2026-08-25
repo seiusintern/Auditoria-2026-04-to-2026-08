@@ -1,0 +1,108 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: authentik
+      POSTGRES_DB: authentik
+    volumes:
+      - db:/var/lib/postgresql/data
+    networks:
+      - dokploy-network
+
+  redis:
+    image: redis:7
+    networks:
+      - dokploy-network
+
+  server:
+    image: ghcr.io/goauthentik/server:latest
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: '${AUTHENTIK_SECRET_KEY}'
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_REDIS__HOST: redis
+      CELERY_BROKER_URL: redis://redis:6379/0
+      AUTHENTIK_LISTEN__HTTP: 0.0.0.0:9000
+      AUTHENTIK_AUTHENTIK__HOST: http://server:9000
+      AUTHENTIK_AUTHENTIK__INSECURE: "true"
+      AUTHENTIK_EMAIL__HOST: '${AUTHENTIK_EMAIL__HOST}'
+      AUTHENTIK_EMAIL__PORT: '${AUTHENTIK_EMAIL__PORT}'
+      AUTHENTIK_EMAIL__USERNAME: '${AUTHENTIK_EMAIL__USERNAME}'
+      AUTHENTIK_EMAIL__PASSWORD: '${AUTHENTIK_EMAIL__PASSWORD}'
+      AUTHENTIK_EMAIL__USE_TLS: '${AUTHENTIK_EMAIL__USE_TLS}'
+      AUTHENTIK_EMAIL__USE_SSL: '${AUTHENTIK_EMAIL__USE_SSL}'
+      AUTHENTIK_EMAIL__FROM: '${AUTHENTIK_EMAIL__FROM}'
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "9000:9000"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.authentik-secure.rule=Host(`authentik.seius.com.ec`)
+      - traefik.http.routers.authentik-secure.entrypoints=websecure
+      - traefik.http.routers.authentik-secure.tls=true
+      - traefik.http.routers.authentik-secure.tls.certresolver=letsencrypt
+      - traefik.http.services.authentik-secure-service.loadbalancer.server.port=8000
+      - traefik.http.routers.authentik-secure.service=authentik-secure-service
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - dokploy-network
+
+  worker:
+    image: ghcr.io/goauthentik/server:latest
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: '${AUTHENTIK_SECRET_KEY}'
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_REDIS__HOST: redis
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DOCKER_HOST: unix:///var/run/docker.sock
+      AUTHENTIK_AUTHENTIK__HOST: http://server:9000
+      AUTHENTIK_AUTHENTIK__INSECURE: "true"
+      DOCKER_GROUP: "989"
+      AUTHENTIK_EMAIL__HOST: '${AUTHENTIK_EMAIL__HOST}'
+      AUTHENTIK_EMAIL__PORT: '${AUTHENTIK_EMAIL__PORT}'
+      AUTHENTIK_EMAIL__USERNAME: '${AUTHENTIK_EMAIL__USERNAME}'
+      AUTHENTIK_EMAIL__PASSWORD: '${AUTHENTIK_EMAIL__PASSWORD}'
+      AUTHENTIK_EMAIL__USE_TLS: '${AUTHENTIK_EMAIL__USE_TLS}'
+      AUTHENTIK_EMAIL__USE_SSL: '${AUTHENTIK_EMAIL__USE_SSL}'
+      AUTHENTIK_EMAIL__FROM: '${AUTHENTIK_EMAIL__FROM}'
+    depends_on:
+      - server
+    networks:
+      - dokploy-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  authentik-proxy:
+    image: ghcr.io/goauthentik/proxy:latest
+    container_name: ak-outpost-middleware
+    restart: unless-stopped
+    environment:
+      AUTHENTIK_HOST: http://production-authentik-btfckw-server-1:9000
+      AUTHENTIK_INSECURE: "true"
+      AUTHENTIK_TOKEN: '${AUTHENTIK_SECRET_KEY}'
+      AUTHENTIK_REDIS__HOST: production-authentik-btfckw-redis-1 
+      AUTHENTIK_REDIS__PORT: "6379"
+    networks:
+      - dokploy-network
+      
+volumes:
+  db:
+        
+networks:
+  dokploy-network:
+    external: true
