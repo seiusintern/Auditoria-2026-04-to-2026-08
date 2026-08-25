@@ -201,3 +201,23 @@ Cloudflare incluye un **WAF (Web Application Firewall)** que analiza cada petici
   **No expongas el panel de Dokploy:** Una vez configurado tu dominio, usa el propio Dokploy para ponerle una capa de "Basic Auth" al puerto 3000. Así, nadie podrá siquiera ver tu pantalla de login de administración.
 
 - **Habilitar Swap:** Aunque tengas mucha RAM, en Oracle Linux/Ubuntu es vital crear un archivo Swap de unos 4GB para evitar que el sistema mate procesos (OOM Killer) durante despliegues pesados.
+
+# Estrategia de Respaldos del VPS
+
+Debido a que el VPS alberga un servidor de gestión de contraseñas (**Passbolt**), la generación de respaldos no se realiza de forma convencional, sino mediante procedimientos específicos según el tipo de datos:
+
+## 1. Respaldos de Passbolt (Base de Datos)
+* **Destino:** Bucket de Cloudflare R2.
+* **Herramientas:** `rclone` y utilidades de respaldo de Passbolt.
+* **Procedimiento:** 
+  1. Se genera la copia de seguridad de la base de datos del servicio Passbolt.
+  2. El archivo se **encripta** previamente antes del envío.
+  3. Se sincroniza/sube de forma segura hacia el bucket de Cloudflare R2 mediante `rclone`.
+
+## 2. Respaldos Completos del VPS (Imágenes/Sistema)
+* **Destino:** Google Drive (seleccionado por capacidad de almacenamiento).
+* **Frecuencia:** Mensual.
+* **Procedimiento:** 
+  1. Se sigue la misma lógica de automatización y cifrado.
+  2. El respaldo completo se **encripta siempre** antes de ser subido.
+  3. Una vez verificada la subida del nuevo respaldo a Google Drive, se **elimina automáticamente la copia del mes anterior** para optimizar el espacio.
