@@ -6,11 +6,11 @@ Adicionalmente, la infraestructura se complementará con Authentik desplegado en
 
 **Arquitectura General**
 
-<p align="center"><img src="../media/authentik_image1.png" alt="Arquitectura General" width="3.882095363079615in" height="3.84375in" /></p>
+<p align="center"><img src="../media/authentik_image1.png" alt="Arquitectura General" width="90%" /></p>
 
 **Flujo de autenticación**
 
-<p align="center"><img src="../media/authentik_image2.jpeg" alt="Flujo de autenticación" width="4.583333333333333in" height="3.7942924321959755in" /></p>
+<p align="center"><img src="../media/authentik_image2.jpeg" alt="Flujo de autenticación" width="90%" /></p>
 
 **Componentes del sistema**
 
@@ -131,7 +131,7 @@ En esta primera fase se despliega **Authentik** como Proveedor de Identidad (IdP
 
     -   **Accesos Subsecuentes:** Validación continua mediante credenciales e ingreso del código TOTP.
 
-<p align="center"><img src="../media/authentik_image3.jpeg" alt="Flujo TOTP con Authentik" width="5.4824726596675415in" height="8.869047462817148in" /></p>
+<p align="center"><img src="../media/authentik_image3.jpeg" alt="Flujo TOTP con Authentik" width="60%" /></p>
 
 -   **Control de Acceso Basado en Roles (RBAC):**
 
