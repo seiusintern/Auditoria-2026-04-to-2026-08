@@ -1,0 +1,94 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    restart: unless-stopped
+
+    entrypoint: ["/bin/sh", "-c"]
+
+    command:
+      - |
+        cat <<'EOF' > /app/config.yaml
+        model_list:
+          - model_name: minimax-m27-highspeed
+            litellm_params:
+              model: anthropic/MiniMax-M2.7-highspeed
+              api_base: https://api.minimax.io/anthropic
+              api_key: os.environ/MINIMAX_API_KEY
+          - model_name: minimax-m3
+            litellm_params:
+              model: anthropic/MiniMax-M3
+              api_base: https://api.minimax.io/anthropic 
+              api_key: os.environ/MINIMAX_API_KEY
+              supports_vision: true
+              drop_params: true  
+              thinking: {"type": "adaptive"}
+          - model_name: minimax-instatic
+            litellm_params:
+              model: openai/MiniMax-M3
+              api_base: https://api.minimax.io/v1 
+              api_key: os.environ/MINIMAX_API_KEY
+              extra_body:
+                response_format: { "type": "json_object" } 
+
+        general_settings:
+          master_key: os.environ/LITELLM_MASTER_KEY
+          store_model_in_db: true
+        EOF
+    
+        exec litellm --config /app/config.yaml --port 4000
+
+    environment:
+      DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD}@postgres:5432/litellm
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY}
+      DISABLE_DATABASE: True
+
+    networks:
+      - dokploy-network
+
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.litellm-http.rule=Host(`llm.seius.com.ec`)
+      - traefik.http.routers.litellm-http.entrypoints=web
+      - traefik.http.routers.litellm-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.litellm-https.rule=Host(`llm.seius.com.ec`)
+      - traefik.http.routers.litellm-https.entrypoints=websecure
+      - traefik.http.routers.litellm-https.tls=true
+      - traefik.http.routers.litellm-https.tls.certresolver=letsencrypt
+      - traefik.http.routers.litellm-https.service=litellm-service
+      - traefik.http.services.litellm-service.loadbalancer.server.port=4000
+
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - dokploy-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  dokploy-network:
+    external: true
