@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  wgdashboard:
+    image: ghcr.io/wgdashboard/wgdashboard:latest
+    container_name: wgdashboard
+    restart: unless-stopped
+
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+
+    volumes:
+      - ./wireguard:/etc/wireguard
+      - ./wgdashboard-data:/data
+
+    environment:
+      - WG_CONF_DIR=/etc/wireguard
+      - TZ=America/Guayaquil
+
+    ports:
+      - "10086:10086"
+      - "51820:51820/udp"
+
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.vpnserver-secure.rule=Host(`wg.seius.com.ec`)
+      - traefik.http.routers.vpnserver-secure.entrypoints=websecure
+      - traefik.http.routers.vpnserver-secure.tls=true
+      - traefik.http.routers.vpnserver-secure.tls.certresolver=letsencrypt
+      - traefik.http.services.vpnserver-secure-service.loadbalancer.server.port=10086
+      - traefik.http.routers.vpnserver-secure.service=vpnserver-secure-service
+      - traefik.http.routers.vpnserver-secure.middlewares=authentik-auth@file
