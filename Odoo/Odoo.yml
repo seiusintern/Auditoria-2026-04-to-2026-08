@@ -1,0 +1,40 @@
+version: '3.1'
+services:
+  web:
+    image: odoo:18.0
+    depends_on:
+      - db 
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - odoo-config:/etc/odoo
+      - /var/dokploy/odoo/custom_addons:/mnt/extra-addons
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.odoo.rule=Host(`odoo.seius.com.ec`)"
+      - "traefik.http.routers.odoo.entrypoints=websecure"
+      - "traefik.http.routers.odoo.tls.certresolver=letsencrypt"
+      - "traefik.http.services.odoo.loadbalancer.server.port=8069"
+    networks:
+      - dokploy-network
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    restart: always
+networks:
+  dokploy-network:
+    external: true
+          
+volumes:
+  odoo-web-data:
+  odoo-config:
+  odoo-db-data:
