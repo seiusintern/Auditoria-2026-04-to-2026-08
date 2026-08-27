@@ -1,0 +1,43 @@
+services:
+  instatic:
+    image: ghcr.io/corebunch/instatic:latest
+    platform: linux/amd64
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgres://instatic_user:instatic_password@instatic-db:5432/instatic_db
+      - PUBLIC_ORIGIN=https://instatic.seius.com.ec
+      - INSTATIC_SECRET_KEY=${INSTATIC_SECRET_KEY}
+      - PUBLIC_ORIGIN=${PUBLIC_ORIGIN}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.instatic.rule=Host(`instatic.seius.com.ec`)"
+      - "traefik.http.routers.instatic.entrypoints=websecure"
+      - "traefik.http.routers.instatic.tls.certresolver=letsencrypt"
+      - "traefik.http.services.instatic.loadbalancer.server.port=3000"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      instatic-db:
+        condition: service_healthy
+
+  instatic-db:
+    image: postgres:16-alpine
+    container_name: instatic-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: instatic_user
+      POSTGRES_PASSWORD: instatic_password
+      POSTGRES_DB: instatic_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U instatic_user -d instatic_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
